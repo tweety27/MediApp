@@ -1,27 +1,54 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:medi/diary_service.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:camera/camera.dart';
+
+import 'auth_service.dart';
 import 'home_page.dart';
 import 'my_page.dart';
 import 'saved_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  await Firebase.initializeApp();
+
+  // 사용 가능한 카메라 목록 가져오기
+  List<CameraDescription> cameras = await availableCameras();
+
+  // 카메라 api 연결
+  File imageFile = File('/Users/JAE111/grad_proj/sample_image.png');
+  await HomePage.uploadImageToServer(imageFile);
   runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Medi(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthService()),
+        ChangeNotifierProvider(create: (context) => DiaryService(prefs)),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Medi(cameras: cameras), // 카메라 목록을 Medi 위젯에 전달
+      ),
     ),
   );
 }
 
 class Medi extends StatefulWidget {
-  const Medi({Key? key}) : super(key: key);
+  final List<CameraDescription> cameras;
+
+  const Medi({Key? key, required this.cameras}) : super(key: key); // 생성자 수정
 
   @override
   _MediState createState() => _MediState();
 }
 
 class _MediState extends State<Medi> {
-  int currentIndex = 0;
+  int currentIndex = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +57,15 @@ class _MediState extends State<Medi> {
         index: currentIndex,
         children: [
           SavedPage(),
-          HomePage(),
+          HomePage(
+            cameras: [],
+          ),
           MyPage(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (newIndex) {
-          print("selected newIndex : $newIndex");
           setState(() {
             currentIndex = newIndex;
           });
